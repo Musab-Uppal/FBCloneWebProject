@@ -1,0 +1,129 @@
+﻿@model semproject.Models.Group
+@{
+    ViewData["Title"] = "Create New Group";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-plus-circle"></i> Create New Group
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post" enctype="multipart/form-data">
+                        <!-- Group Name -->
+                        <div class="mb-3">
+                            <label asp-for="Name" class="form-label">
+                                <i class="bi bi-tag"></i> Group Name *
+                            </label>
+                            <input asp-for="Name" class="form-control"
+                                   placeholder="Enter a descriptive name for your group" required>
+                            <span asp-validation-for="Name" class="text-danger small"></span>
+                            <div class="form-text">Choose a name that clearly describes your group's purpose.</div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">
+                                <i class="bi bi-text-paragraph"></i> Description *
+                            </label>
+                            <textarea asp-for="Description" class="form-control" rows="4"
+                                      placeholder="Describe what your group is about, its purpose, and rules..."
+                                      required></textarea>
+                            <span asp-validation-for="Description" class="text-danger small"></span>
+                            <div class="form-text">Be clear about the group's purpose and expectations.</div>
+                        </div>
+
+                        <!-- Privacy Settings -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-shield"></i> Privacy Settings
+                            </label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" asp-for="IsPrivate" value="false" id="publicGroup" checked>
+                                <label class="form-check-label" for="publicGroup">
+                                    <strong>Public Group</strong>
+                                    <p class="text-muted small mb-0">Anyone can see the group and its posts. Anyone can request to join.</p>
+                                </label>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="radio" asp-for="IsPrivate" value="true" id="privateGroup">
+                                <label class="form-check-label" for="privateGroup">
+                                    <strong>Private Group</strong>
+                                    <p class="text-muted small mb-0">Only members can see the group and its posts. Requires approval to join.</p>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Cover Image -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <i class="bi bi-image"></i> Cover Image (Optional)
+                            </label>
+                            <div class="border rounded p-3 text-center mb-3"
+                                 style="background-color: #f8f9fa; min-height: 200px;"
+                                 id="coverImagePreview">
+                                <i class="bi bi-image text-muted" style="font-size: 48px;"></i>
+                                <p class="text-muted mt-2">No cover image selected</p>
+                            </div>
+                            <input type="file" name="coverImage" class="form-control"
+                                   accept="image/*" id="coverImageInput">
+                            <div class="form-text">Recommended size: 1200x400 pixels. Max 5MB.</div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a asp-action="Index" class="btn btn-outline-secondary me-md-2">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Create Group
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Tips for a Great Group</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li class="mb-2">Choose a clear, descriptive name that reflects your group's purpose</li>
+                        <li class="mb-2">Write a detailed description to attract the right members</li>
+                        <li class="mb-2">Use a relevant cover image that represents your group</li>
+                        <li class="mb-2">Set appropriate privacy settings for your community</li>
+                        <li>Be prepared to moderate and engage with your members</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Cover image preview
+        document.getElementById('coverImageInput').addEventListener('change', function(e) {
+            const preview = document.getElementById('coverImagePreview');
+            const file = e.target.files[0];
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" class="img-fluid rounded"
+                                           style="max-height: 200px; object-fit: cover;">`;
+                }
+                reader.readAsDataURL(file);
+            } else {
+                preview.innerHTML = `<i class="bi bi-image text-muted" style="font-size: 48px;"></i>
+                                    <p class="text-muted mt-2">No cover image selected</p>`;
+            }
+        });
+    </script>
+}

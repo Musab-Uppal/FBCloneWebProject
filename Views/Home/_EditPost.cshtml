@@ -1,0 +1,100 @@
+﻿@model semproject.Models.Post
+
+<div class="modal fade" id="editPostModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Post</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPostForm" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="postId" value="@Model.Id" />
+
+                    <div class="mb-3">
+                        <label for="editContent" class="form-label">Content</label>
+                        <textarea class="form-control" id="editContent" name="content"
+                                  rows="4" required maxlength="500">@Model.Content</textarea>
+                        <div class="form-text">
+                            You can only edit the text content. Images cannot be changed.
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(Model.ImageUrl))
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Current Image</label>
+                            <div>
+                                <img src="@Model.ImageUrl" class="img-fluid rounded" alt="Current post image"
+                                     style="max-height: 200px;">
+                                <div class="alert alert-info mt-2 small">
+                                    <i class="bi bi-info-circle"></i> Image cannot be edited
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveEditBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $('#saveEditBtn').click(function() {
+            var form = $('#editPostForm');
+            var formData = form.serialize();
+
+            $.ajax({
+                url: '@Url.Action("EditPost", "Home")',
+                type: 'POST',
+                data: formData,
+                success: function(response) {
+                    if (response.success) {
+                        // Update the post content in the UI
+                        $('.post-content-@Model.Id').text(response.content);
+
+                        // Close the modal
+                        var modal = bootstrap.Modal.getInstance(document.getElementById('editPostModal'));
+                        modal.hide();
+
+                        // Show success message
+                        showToast('Post updated successfully!', 'success');
+                    } else {
+                        alert(response.message || 'Error updating post');
+                    }
+                },
+                error: function() {
+                    alert('An error occurred while updating the post');
+                }
+            });
+        });
+    });
+
+    function showToast(message, type) {
+        // Create and show a toast notification
+        var toast = document.createElement('div');
+        toast.className = 'toast align-items-center text-white bg-' + (type === 'success' ? 'success' : 'danger');
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+
+        document.body.appendChild(toast);
+        var bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+
+        // Remove toast after it's hidden
+        toast.addEventListener('hidden.bs.toast', function () {
+            document.body.removeChild(toast);
+        });
+    }
+</script>

@@ -1,0 +1,205 @@
+﻿@model List<semproject.Models.Group>
+@{
+    ViewData["Title"] = "Search Groups";
+}
+
+<div class="container mt-4">
+    <!-- Search Header -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h1 class="mb-3">
+                <i class="bi bi-search"></i> Search Groups
+            </h1>
+
+            <form method="get" asp-action="Search" class="row g-3">
+                <div class="col-md-10">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" name="q" class="form-control form-control-lg"
+                               placeholder="Search for groups by name, description, or creator..."
+                               value="@ViewBag.SearchQuery" required>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        Search
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Search Results -->
+    @if (!string.IsNullOrEmpty(ViewBag.SearchQuery))
+    {
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5>Search Results for "@ViewBag.SearchQuery"</h5>
+                    <span class="text-muted">@Model.Count groups found</span>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Results Grid -->
+    <div class="row">
+        @if (Model.Any())
+        {
+            @foreach (var group in Model)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 border shadow-sm hover-shadow">
+                        <!-- Group Image -->
+                        @if (!string.IsNullOrEmpty(group.CoverImageUrl))
+                        {
+                            <img src="@group.CoverImageUrl" class="card-img-top" alt="@group.Name"
+                                 style="height: 160px; object-fit: cover;">
+                        }
+                        else
+                        {
+                            <div class="card-img-top bg-gradient bg-primary d-flex align-items-center justify-content-center"
+                                 style="height: 160px;">
+                                <i class="bi bi-people-fill text-white" style="font-size: 48px;"></i>
+                            </div>
+                        }
+
+                        <div class="card-body">
+                            <!-- Group Info -->
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-1">@group.Name</h5>
+                                @if (group.IsPrivate)
+                                {
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-lock"></i>
+                                    </span>
+                                }
+                            </div>
+
+                            <p class="card-text text-muted small mb-3">
+                                @if (group.Description.Length > 100)
+                                {
+                                    @group.Description.Substring(0, 100)
+                        
+                                    <text>...</text>
+                                }
+                                else
+                                {
+                                    @group.Description
+                                }
+                            </p>
+
+                            <!-- Group Stats -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <small class="text-muted">
+                                        <i class="bi bi-people"></i> @group.Members.Count members
+                                    </small>
+                                    <span class="mx-1">•</span>
+                                    <small class="text-muted">
+                                        <i class="bi bi-person"></i> @group.CreatedBy.UserName
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Action Button -->
+                            <div class="d-grid">
+                                <a asp-action="Details" asp-route-id="@group.Id" class="btn btn-outline-primary">
+                                    <i class="bi bi-eye"></i> View Group
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else if (!string.IsNullOrEmpty(ViewBag.SearchQuery))
+        {
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="bi bi-search text-muted" style="font-size: 64px;"></i>
+                    </div>
+                    <h4>No groups found</h4>
+                    <p class="text-muted mb-4">
+                        No groups match your search for "@ViewBag.SearchQuery"
+                    </p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a asp-action="Browse" class="btn btn-outline-primary">
+                            <i class="bi bi-compass"></i> Browse All Groups
+                        </a>
+                        <a asp-action="Create" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Create New Group
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="bi bi-search-heart text-muted" style="font-size: 64px;"></i>
+                    </div>
+                    <h4>Search for Groups</h4>
+                    <p class="text-muted mb-4">
+                        Enter a search term above to find groups by name, description, or creator
+                    </p>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Browse Categories -->
+    @if (string.IsNullOrEmpty(ViewBag.SearchQuery))
+    {
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Browse by Category</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-code-slash text-primary" style="font-size: 32px;"></i>
+                                        <h6 class="mt-2 mb-0">Technology</h6>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-briefcase text-success" style="font-size: 32px;"></i>
+                                        <h6 class="mt-2 mb-0">Business</h6>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-heart text-danger" style="font-size: 32px;"></i>
+                                        <h6 class="mt-2 mb-0">Health & Fitness</h6>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-book text-warning" style="font-size: 32px;"></i>
+                                        <h6 class="mt-2 mb-0">Education</h6>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

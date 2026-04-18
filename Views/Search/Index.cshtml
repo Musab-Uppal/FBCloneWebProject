@@ -1,0 +1,230 @@
+@model semproject.Models.SearchResults
+@{
+    ViewData["Title"] = "Search Results";
+}
+
+<div class="container mt-4">
+    <!-- Search Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="mb-3">Search Results for "@ViewBag.SearchQuery"</h4>
+
+                    <!-- Search Type Tabs -->
+                    <ul class="nav nav-tabs" id="searchTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(ViewBag.SearchType == "all" ? "active" : "")"
+                                    onclick="window.location.href='/Search?q=@ViewBag.SearchQuery&type=all'">
+                                All (@(Model.Users.Count + Model.Posts.Count + Model.Groups.Count))
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(ViewBag.SearchType == "people" ? "active" : "")"
+                                    onclick="window.location.href='/Search?q=@ViewBag.SearchQuery&type=people'">
+                                People (@Model.Users.Count)
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(ViewBag.SearchType == "posts" ? "active" : "")"
+                                    onclick="window.location.href='/Search?q=@ViewBag.SearchQuery&type=posts'">
+                                Posts (@Model.Posts.Count)
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link @(ViewBag.SearchType == "groups" ? "active" : "")"
+                                    onclick="window.location.href='/Search?q=@ViewBag.SearchQuery&type=groups'">
+                                Groups (@Model.Groups.Count)
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Results -->
+    <div class="row">
+        @if (ViewBag.SearchType == "all" || ViewBag.SearchType == "people")
+        {
+            <!-- People Results -->
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">People</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.Users.Any())
+                        {
+                            foreach (var user in Model.Users)
+                            {
+                                <div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
+                                    <div>
+                                        <a asp-controller="Profile" asp-action="View" asp-route-id="@user.Id"
+                                           class="text-decoration-none">
+                                            <h6 class="mb-1">@user.UserName</h6>
+                                            <small class="text-muted">@user.Email</small>
+                                        </a>
+                                    </div>
+
+                                    @if (user.Id != ViewBag.CurrentUserId)
+                                    {
+                                        <form asp-controller="Follow" asp-action="ToggleFollow" method="post">
+                                            <input type="hidden" name="followingId" value="@user.Id" />
+                                            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+
+                                            @if (await _followService.IsFollowingAsync(ViewBag.CurrentUserId, user.Id))
+                                            {
+                                                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                                    <i class="bi bi-person-check"></i> Following
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button type="submit" class="btn btn-primary btn-sm">
+                                                    <i class="bi bi-person-plus"></i> Follow
+                                                </button>
+                                            }
+                                        </form>
+                                    }
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">No people found</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (ViewBag.SearchType == "all" || ViewBag.SearchType == "posts")
+        {
+            <!-- Posts Results -->
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Posts</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.Posts.Any())
+                        {
+                            foreach (var post in Model.Posts)
+                            {
+                                <div class="mb-3 p-2 border rounded">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <a asp-controller="Profile" asp-action="View" asp-route-id="@post.User.Id"
+                                               class="text-decoration-none">
+                                                <strong>@post.User.UserName</strong>
+                                            </a>
+                                            <small class="text-muted d-block">
+                                                @post.CreatedAt.ToString("MMM dd, yyyy")
+                                            </small>
+                                        </div>
+                                        <form asp-controller="Follow" asp-action="ToggleFollow" method="post">
+                                            <input type="hidden" name="followingId" value="@post.User.Id" />
+                                            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+
+                                            @if (await _followService.IsFollowingAsync(ViewBag.CurrentUserId, post.User.Id))
+                                            {
+                                                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                                    <i class="bi bi-person-check"></i>
+                                                </button>
+                                            }
+                                            else if (post.User.Id != ViewBag.CurrentUserId)
+                                            {
+                                                <button type="submit" class="btn btn-primary btn-sm">
+                                                    <i class="bi bi-person-plus"></i>
+                                                </button>
+                                            }
+                                        </form>
+                                    </div>
+
+                                    <p class="mb-2">@post.Content</p>
+
+                                    <div class="d-flex justify-content-between">
+                                        <small class="text-muted">
+                                            <i class="bi bi-hand-thumbs-up"></i> @post.Likes.Count likes
+                                        </small>
+                                        <small class="text-muted">@post.Comments.Count comments</small>
+                                    </div>
+
+                                    <div class="mt-2">
+                                        <a href="/Home/Feed#post-@post.Id" class="btn btn-outline-primary btn-sm">
+                                            View Post
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">No posts found</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (ViewBag.SearchType == "all" || ViewBag.SearchType == "groups")
+        {
+            <!-- Groups Results -->
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Groups</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.Groups.Any())
+                        {
+                            foreach (var group in Model.Groups)
+                            {
+                                <div class="mb-3 p-2 border rounded">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="mb-1">@group.Name</h6>
+                                            <small class="text-muted">
+                                                @group.Members.Count members •
+                                                @if (group.IsPrivate)
+                                                {
+                                                    <span class="badge bg-secondary">Private</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success">Public</span>
+                                                }
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <p class="mb-2 text-muted small">@group.Description</p>
+
+                                    <div class="d-flex justify-content-between">
+                                        <small class="text-muted">
+                                            Created by @group.CreatedBy.UserName
+                                        </small>
+                                    </div>
+
+                                    <div class="mt-2">
+                                        <a asp-controller="Groups" asp-action="Details" asp-route-id="@group.Id"
+                                           class="btn btn-outline-primary btn-sm">
+                                            View Group
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">No groups found</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@inject semproject.Services.Interfaces.IFollowService _followService

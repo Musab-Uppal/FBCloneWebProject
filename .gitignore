@@ -1,0 +1,49 @@
+# Visual Studio / .NET
+.vs/
+**/bin/
+**/obj/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# IDEs
+.vscode/
+.idea/
+*.sln.iml
+
+# NuGet / packages
+*.nupkg
+packages/
+
+# Build / publish outputs
+publish/
+out/
+
+# ASP.NET Core (Razor Pages) local secrets & dev config
+appsettings.Development.json
+secrets.json
+
+# LibMan / frontend artifacts
+wwwroot/lib/
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Test results, logs, DB files
+TestResults/
+*.log
+*.sqlite
+*.db
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc binaries / build products
+*.dll
+*.exe
+*.pdb
+*.cache
+*.vsix

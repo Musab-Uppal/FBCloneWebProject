@@ -1,0 +1,180 @@
+﻿@model List<semproject.Models.Group>
+@{
+    ViewData["Title"] = "Browse Groups";
+}
+
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-2">Browse Public Groups</h1>
+                    <p class="text-muted mb-0">Discover and join communities that interest you</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a asp-action="Create" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Create Group
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" asp-action="Browse" class="row g-3">
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" name="search" class="form-control"
+                               placeholder="Search groups by name or description..."
+                               value="@ViewBag.SearchTerm">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select name="sort" class="form-select">
+                        <option value="newest" selected>Newest</option>
+                        <option value="popular">Most Popular</option>
+                        <option value="name">Name (A-Z)</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Groups Grid -->
+    <div class="row">
+        @if (Model.Any())
+        {
+            @foreach (var group in Model)
+            {
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border shadow-sm">
+                        <!-- Group Cover -->
+                        @if (!string.IsNullOrEmpty(group.CoverImageUrl))
+                        {
+                            <img src="@group.CoverImageUrl" class="card-img-top" alt="@group.Name"
+                                 style="height: 180px; object-fit: cover;">
+                        }
+                        else
+                        {
+                            <div class="card-img-top bg-gradient bg-primary d-flex align-items-center justify-content-center"
+                                 style="height: 180px;">
+                                <i class="bi bi-people-fill text-white" style="font-size: 64px;"></i>
+                            </div>
+                        }
+
+                        <div class="card-body">
+                            <!-- Group Info -->
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h5 class="card-title mb-1">@group.Name</h5>
+                                    <small class="text-muted">
+                                        Created by @group.CreatedBy.UserName
+                                    </small>
+                                </div>
+                                @if (group.IsPrivate)
+                                {
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-lock"></i>
+                                    </span>
+                                }
+                            </div>
+
+                            <!-- Description -->
+                            <p class="card-text text-muted mb-3">
+                                @if (group.Description.Length > 120)
+                                {
+                                    @group.Description.Substring(0, 120)
+                        
+                                    <text>...</text>
+                                }
+                                else
+                                {
+                                    @group.Description
+                                }
+                            </p>
+
+                            <!-- Stats -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <small class="text-muted">
+                                        <i class="bi bi-people"></i> @group.Members.Count members
+                                    </small>
+                                    <span class="mx-2">•</span>
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar"></i> @group.CreatedAt.ToString("MMM yyyy")
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-grid gap-2">
+                                <a asp-action="Details" asp-route-id="@group.Id" class="btn btn-outline-primary">
+                                    <i class="bi bi-eye"></i> View Group
+                                </a>
+                                @if (ViewBag.JoinedGroupIds != null && ViewBag.JoinedGroupIds.Contains(group.Id))
+                                {
+                                    <form asp-action="Leave" method="post" class="d-grid">
+                                        <input type="hidden" name="groupId" value="@group.Id" />
+                                        <button type="submit" class="btn btn-outline-danger">
+                                            <i class="bi bi-x-circle"></i> Leave Group
+                                        </button>
+                                    </form>
+                                }
+                                else if (!group.IsPrivate)
+                                {
+                                    <form asp-action="Join" method="post" class="d-grid">
+                                        <input type="hidden" name="groupId" value="@group.Id" />
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="bi bi-plus-circle"></i> Join Group
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-secondary" disabled>
+                                        <i class="bi bi-lock"></i> Private Group
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="bi bi-emoji-frown text-muted" style="font-size: 64px;"></i>
+                    </div>
+                    <h4>No groups found</h4>
+                    <p class="text-muted mb-4">
+                        @if (!string.IsNullOrEmpty(ViewBag.SearchTerm))
+                        {
+                            <text>No groups match your search criteria. Try a different search term.</text>
+                        }
+                        else
+                        {
+                            <text>No public groups available at the moment. Be the first to create one!</text>
+                        }
+                    </p>
+                    <a asp-action="Create" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Create First Group
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+</div>

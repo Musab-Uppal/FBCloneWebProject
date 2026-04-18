@@ -1,0 +1,159 @@
+﻿@model semproject.Models.Group
+@{
+    ViewData["Title"] = "Edit Group";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-pencil-square"></i> Edit Group: @Model.Name
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                        <input type="hidden" asp-for="Id" />
+
+                        <!-- Current Cover Image -->
+                        @if (!string.IsNullOrEmpty(Model.CoverImageUrl))
+                        {
+                            <div class="mb-4">
+                                <label class="form-label">Current Cover Image</label>
+                                <div class="text-center">
+                                    <img src="@Model.CoverImageUrl" class="img-fluid rounded mb-2"
+                                         style="max-height: 200px; object-fit: cover;"
+                                         alt="Current cover">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="removeCoverImage" id="removeCoverImage">
+                                        <label class="form-check-label" for="removeCoverImage">
+                                            Remove current cover image
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Group Name -->
+                        <div class="mb-3">
+                            <label asp-for="Name" class="form-label">Group Name *</label>
+                            <input asp-for="Name" class="form-control" required>
+                            <span asp-validation-for="Name" class="text-danger small"></span>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">Description *</label>
+                            <textarea asp-for="Description" class="form-control" rows="4" required></textarea>
+                            <span asp-validation-for="Description" class="text-danger small"></span>
+                        </div>
+
+                        <!-- New Cover Image -->
+                        <div class="mb-3">
+                            <label class="form-label">New Cover Image</label>
+                            <input type="file" name="coverImage" class="form-control" accept="image/*">
+                            <div class="form-text">Leave empty to keep current image</div>
+                        </div>
+
+                        <!-- Privacy Settings -->
+                        <div class="mb-4">
+                            <label class="form-label">Privacy Settings</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" asp-for="IsPrivate" value="false" id="editPublic">
+                                <label class="form-check-label" for="editPublic">
+                                    <strong>Public Group</strong>
+                                    <p class="text-muted small mb-0">Anyone can see and join the group</p>
+                                </label>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="radio" asp-for="IsPrivate" value="true" id="editPrivate">
+                                <label class="form-check-label" for="editPrivate">
+                                    <strong>Private Group</strong>
+                                    <p class="text-muted small mb-0">Only members can see content, approval required to join</p>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Danger Zone -->
+                        <div class="card border-danger mb-4">
+                            <div class="card-header bg-danger text-white">
+                                <h6 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Danger Zone</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-danger mb-3">These actions are irreversible. Please be cautious.</p>
+
+                                <!-- Delete Group -->
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">Delete Group</h6>
+                                        <p class="text-muted small mb-0">Permanently delete this group and all its content</p>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-danger"
+                                            data-bs-toggle="modal" data-bs-target="#deleteGroupModal">
+                                        Delete Group
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary me-md-2">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Group Modal -->
+<div class="modal fade" id="deleteGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Delete Group</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <h6 class="alert-heading">Warning!</h6>
+                    <p class="mb-0">This action cannot be undone. All posts, members, and group data will be permanently deleted.</p>
+                </div>
+
+                <p>Are you sure you want to delete the group <strong>"@Model.Name"</strong>?</p>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="confirmDelete">
+                    <label class="form-check-label" for="confirmDelete">
+                        I understand this action is permanent and cannot be reversed
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-action="Delete" method="post" class="d-inline">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+                        <i class="bi bi-trash"></i> Delete Group Permanently
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Enable delete button only when checkbox is checked
+        document.getElementById('confirmDelete').addEventListener('change', function() {
+            document.getElementById('deleteButton').disabled = !this.checked;
+        });
+    </script>
+}

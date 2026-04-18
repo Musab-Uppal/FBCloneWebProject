@@ -1,0 +1,189 @@
+@model semproject.Models.DiscoverViewModel
+@{
+    ViewData["Title"] = "Discover";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <!-- Left Column: Random Posts -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Discover Posts</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.RandomPosts.Any())
+                    {
+                        foreach (var post in Model.RandomPosts)
+                        {
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div>
+                                            <h5 class="card-title mb-1">
+                                                <a asp-controller="Profile" asp-action="View" asp-route-id="@post.User.Id"
+                                                   class="text-decoration-none">
+                                                    @post.User.UserName
+                                                </a>
+                                            </h5>
+                                            <small class="text-muted">@post.CreatedAt.ToString("MMMM dd, yyyy hh:mm tt")</small>
+                                        </div>
+                                        <form asp-controller="Follow" asp-action="ToggleFollow" method="post">
+                                            <input type="hidden" name="followingId" value="@post.User.Id" />
+
+                                            @if (await _followService.IsFollowingAsync(ViewBag.CurrentUserId, post.User.Id))
+                                            {
+                                                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                                    <i class="bi bi-person-check"></i> Following
+                                                </button>
+                                            }
+                                            else if (post.User.Id != ViewBag.CurrentUserId)
+                                            {
+                                                <button type="submit" class="btn btn-primary btn-sm">
+                                                    <i class="bi bi-person-plus"></i> Follow
+                                                </button>
+                                            }
+                                        </form>
+                                    </div>
+
+                                    <p class="card-text">@post.Content</p>
+
+                                    @if (!string.IsNullOrEmpty(post.ImageUrl))
+                                    {
+                                        <img src="@post.ImageUrl" class="img-fluid rounded mb-3" alt="Post image">
+                                    }
+
+                                    <div class="d-flex justify-content-between">
+                                        <form asp-controller="Home" asp-action="LikePost" method="post">
+                                            <input type="hidden" name="postId" value="@post.Id" />
+                                            <input type="hidden" name="returnUrl" value="/Search/Discover" />
+                                            <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-hand-thumbs-up"></i> Like (@post.Likes.Count)
+                                            </button>
+                                        </form>
+                                        <span class="text-muted">@post.Comments.Count comments</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <h4>No posts to discover</h4>
+                            <p class="text-muted">Be the first to create a post!</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Groups & People -->
+        <div class="col-lg-4">
+            <!-- People You May Know -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">People You May Know</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.SuggestedUsers.Any())
+                    {
+                        foreach (var user in Model.SuggestedUsers)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
+                                <div>
+                                    <h6 class="mb-1">@user.UserName</h6>
+                                    <small class="text-muted">@user.Email</small>
+                                </div>
+
+                                <form asp-controller="Follow" asp-action="ToggleFollow" method="post">
+                                    <input type="hidden" name="followingId" value="@user.Id" />
+                                    <input type="hidden" name="returnUrl" value="/Search/Discover" />
+
+                                    @if (await _followService.IsFollowingAsync(ViewBag.CurrentUserId, user.Id))
+                                    {
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                            <i class="bi bi-person-check"></i>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="bi bi-person-plus"></i>
+                                        </button>
+                                    }
+                                </form>
+                            </div>
+                        }
+
+                        
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">No suggestions available</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Suggested Groups -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Suggested Groups</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.RandomGroups.Any())
+                    {
+                        foreach (var group in Model.RandomGroups)
+                        {
+                            <div class="mb-3 p-2 border rounded">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="mb-1">@group.Name</h6>
+                                        <small class="text-muted">
+                                            @group.Members.Count members •
+                                            @if (group.IsPrivate)
+                                            {
+                                                <span class="badge bg-secondary">Private</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">Public</span>
+                                            }
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <p class="mb-2 text-muted small">@group.Description</p>
+
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">
+                                        Created by @group.CreatedBy.UserName
+                                    </small>
+                                </div>
+
+                                <div class="mt-2">
+                                    <a asp-controller="Groups" asp-action="Details" asp-route-id="@group.Id"
+                                       class="btn btn-outline-primary btn-sm">
+                                        View Group
+                                    </a>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="text-center mt-3">
+                            <a asp-controller="Groups" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                                Browse All Groups
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">No groups available</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@inject semproject.Services.Interfaces.IFollowService _followService

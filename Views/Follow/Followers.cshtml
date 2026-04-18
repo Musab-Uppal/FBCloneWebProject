@@ -1,0 +1,191 @@
+@model List<Microsoft.AspNetCore.Identity.IdentityUser>
+@{
+    ViewData["Title"] = "Followers";
+    var currentUserId = ViewBag.CurrentUserId;
+    var profileUserId = ViewBag.UserId;
+    var isOwnProfile = (currentUserId == profileUserId);
+}
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2>Followers</h2>
+                    <p class="text-muted mb-0">
+                        @if (isOwnProfile)
+                        {
+                            <span>People who follow you</span>
+                        }
+                        else
+                        {
+                            <span>People who follow this user</span>
+                        }
+                    </p>
+                </div>
+                <div>
+                    <a asp-action="Following" asp-route-userId="@profileUserId" class="btn btn-outline-primary">
+                        View Following
+                    </a>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 col-6 text-center">
+                            <h3 class="text-primary mb-0">@ViewBag.FollowerCount</h3>
+                            <small class="text-muted">Total Followers</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Followers Grid -->
+    <div class="row">
+        @if (Model.Any())
+        {
+            foreach (var follower in Model)
+            {
+                var isFollowing = await _followService.IsFollowingAsync(currentUserId, follower.Id);
+
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <!-- Avatar -->
+                                <div class="me-3">
+                                    <div class="avatar-circle" style="width: 60px; height: 60px;">
+                                        @if (follower.UserName != null)
+                                        {
+                                            <span class="avatar-text">
+                                                @follower.UserName.Substring(0, 1).ToUpper()
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <!-- User Info -->
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        <a asp-controller="Profile" asp-action="View" asp-route-id="@follower.Id"
+                                           class="text-decoration-none">
+                                            @follower.UserName
+                                        </a>
+                                    </h6>
+                                    <small class="text-muted">@follower.Email</small>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex gap-2">
+                                <a asp-controller="Profile" asp-action="View" asp-route-id="@follower.Id"
+                                   class="btn btn-outline-primary btn-sm flex-grow-1">
+                                    View Profile
+                                </a>
+
+                                @if (follower.Id != currentUserId)
+                                {
+                                    <form asp-action="ToggleFollow" method="post" class="d-inline">
+                                        <input type="hidden" name="followingId" value="@follower.Id" />
+                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+
+                                        @if (isFollowing)
+                                        {
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                                Following
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="submit" class="btn btn-primary btn-sm">
+                                                Follow Back
+                                            </button>
+                                        }
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="btn btn-sm btn-info">You</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Pagination -->
+            @if (ViewBag.FollowerCount > 20)
+            {
+                <div class="col-12">
+                    <div class="d-flex justify-content-center mt-4">
+                        <nav>
+                            <ul class="pagination">
+                                @if (ViewBag.Page > 1)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" asp-action="Followers"
+                                           asp-route-userId="@profileUserId"
+                                           asp-route-page="@(ViewBag.Page - 1)">
+                                            Previous
+                                        </a>
+                                    </li>
+                                }
+
+                                <li class="page-item active">
+                                    <span class="page-link">Page @ViewBag.Page</span>
+                                </li>
+
+                                @if (Model.Count == 20)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" asp-action="Followers"
+                                           asp-route-userId="@profileUserId"
+                                           asp-route-page="@(ViewBag.Page + 1)">
+                                            Next
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <div class="mb-4">
+                            <i class="bi bi-people text-muted" style="font-size: 64px;"></i>
+                        </div>
+                        <h4>No followers yet</h4>
+                        <p class="text-muted mb-4">
+                            @if (isOwnProfile)
+                            {
+                                <text>When someone follows you, they'll appear here.</text>
+                            }
+                            else
+                            {
+                                <text>This user doesn't have any followers yet.</text>
+                            }
+                        </p>
+                        @if (isOwnProfile)
+                        {
+                            <a asp-controller="Search" asp-action="Discover" class="btn btn-primary">
+                                Discover People
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@inject semproject.Services.Interfaces.IFollowService _followService

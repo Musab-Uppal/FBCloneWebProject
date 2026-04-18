@@ -1,0 +1,1398 @@
+﻿@model semproject.Models.Group
+@{
+    ViewData["Title"] = Model.Name;
+
+    // Get liked post IDs and like counts from ViewBag
+    var likedPostIds = ViewBag.LikedPostIds as List<int> ?? new List<int>();
+    var postLikes = ViewBag.PostLikes as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var currentUserId = ViewBag.CurrentUserId as string;
+}
+
+<div class="container mt-3">
+    <!-- Group Header -->
+    <div class="card mb-4 border-0 shadow-sm">
+        @if (!string.IsNullOrEmpty(Model.CoverImageUrl))
+        {
+            <div class="position-relative">
+                <img src="@Model.CoverImageUrl" class="card-img-top" alt="Cover"
+                     style="height: 300px; object-fit: cover;">
+                <div class="position-absolute bottom-0 start-0 end-0 p-4"
+                     style="background: linear-gradient(transparent, rgba(0,0,0,0.7));">
+                    <div class="text-white">
+                        <h1 class="display-6 mb-1">@Model.Name</h1>
+                        <p class="mb-0 opacity-75">@Model.Description</p>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card-header bg-primary text-white py-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1 class="display-6 mb-2">@Model.Name</h1>
+                        <p class="lead mb-0">@Model.Description</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        @if (Model.IsPrivate)
+                        {
+                            <span class="badge bg-warning px-3 py-2">
+                                <i class="bi bi-lock-fill"></i> Private Group
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success px-3 py-2">
+                                <i class="bi bi-globe"></i> Public Group
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Group Stats Bar -->
+        <div class="card-body py-3 border-top">
+            <div class="row text-center">
+                <div class="col">
+                    <h4 class="mb-0">@Model.Members.Count</h4>
+                    <small class="text-muted">Members</small>
+                </div>
+                <div class="col">
+                    <h4 class="mb-0">@Model.Posts.Count</h4>
+                    <small class="text-muted">Posts</small>
+                </div>
+                <div class="col">
+                    <h4 class="mb-0">@Model.CreatedAt.ToString("MMMM yyyy")</h4>
+                    <small class="text-muted">Created</small>
+                </div>
+                <div class="col">
+                    <h4 class="mb-0">@Model.CreatedBy.UserName</h4>
+                    <small class="text-muted">Admin</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Left Column: Group Content -->
+        <div class="col-lg-8">
+            <!-- Group Actions -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        @if (ViewBag.IsMember)
+                        {
+                            <!-- Create Post Button -->
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPostModal">
+                                <i class="bi bi-plus-circle"></i> Create Post
+                            </button>
+
+                            <!-- Leave Group Button with AJAX -->
+                            <button type="button" class="btn btn-outline-danger leave-group-btn"
+                                    data-group-id="@Model.Id">
+                                <i class="bi bi-box-arrow-right"></i> Leave Group
+                            </button>
+
+                            @if (ViewBag.IsAdmin)
+                            {
+                                <!-- Admin Actions -->
+                                <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editGroupModal">
+                                    <i class="bi bi-pencil"></i> Edit Group
+                                </button>
+
+                                <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#manageMembersModal">
+                                    <i class="bi bi-people"></i> Manage Members
+                                </button>
+                            }
+                        }
+                        else
+                        {
+                            @if (Model.IsPrivate)
+                            {
+                                <!-- Request to Join Private Group -->
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#requestJoinModal">
+                                    <i class="bi bi-envelope"></i> Request to Join
+                                </button>
+                            }
+                            else
+                            {
+                                <!-- Join Public Group with AJAX -->
+                                <button type="button" class="btn btn-success join-group-btn"
+                                        data-group-id="@Model.Id">
+                                    <i class="bi bi-plus-circle"></i> Join Group
+                                </button>
+                            }
+
+                            <!-- Follow Group -->
+                            <button class="btn btn-outline-primary">
+                                <i class="bi bi-bell"></i> Follow
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Group Posts -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-chat-left-text"></i> Group Posts
+                        <span class="badge bg-primary">@Model.Posts.Count</span>
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary" id="refreshPostsBtn">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body" id="postsContainer">
+                    @if (Model.Posts.Any())
+                    {
+                        foreach (var groupPost in Model.Posts.OrderByDescending(gp => gp.SharedAt))
+                        {
+                            var post = groupPost.Post;
+                            var isLiked = likedPostIds.Contains(post.Id);
+                            var likeCount = postLikes.ContainsKey(post.Id) ? postLikes[post.Id] : (post.Likes?.Count ?? 0);
+                            var commentCount = post.Comments?.Count ?? 0;
+
+                            <div class="card mb-3 group-post" id="post-@post.Id" data-post-id="@post.Id">
+                                <div class="card-body">
+                                    <!-- Post Header -->
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3"
+                                                 style="width: 40px; height: 40px;">
+                                                <i class="bi bi-person text-white"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0">@post.User.UserName</h6>
+                                                <small class="text-muted">
+                                                    Shared in @Model.Name • @groupPost.SharedAt.ToString("MMMM dd, yyyy hh:mm tt")
+                                                    
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary" type="button"
+                                                    data-bs-toggle="dropdown">
+                                                <i class="bi bi-three-dots"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#"><i class="bi bi-flag"></i> Report</a></li>
+                                                @if (ViewBag.IsAdmin || post.UserId == currentUserId)
+                                                {
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <a class="dropdown-item text-danger remove-post-btn"
+                                                           href="#" data-post-id="@post.Id" data-group-id="@Model.Id">
+                                                            <i class="bi bi-trash"></i> Remove
+                                                        </a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <!-- Post Content -->
+                                    <p class="mb-3">@post.Content</p>
+
+                                    @if (!string.IsNullOrEmpty(post.ImageUrl))
+                                    {
+                                        <img src="@post.ImageUrl" class="img-fluid rounded mb-3"
+                                             alt="Post image" style="max-height: 400px;">
+                                    }
+
+                                    <!-- Post Stats -->
+                                    <div class="d-flex justify-content-between mb-3">
+                                        <div>
+                                            <span class="text-muted me-3">
+                                                <i class="bi bi-hand-thumbs-up"></i> <span class="like-count-display">@likeCount</span> likes
+                                            </span>
+                                            <span class="text-muted comments-count-display" data-post-id="@post.Id">
+                                                <i class="bi bi-chat-left"></i> <span class="comment-count-number">@commentCount</span> comments
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Post Actions -->
+                                    <div class="d-flex gap-2">
+                                        <button type="button"
+                                                class="btn btn-sm group-like-btn @(isLiked ? "btn-primary" : "btn-outline-primary")"
+                                                data-post-id="@post.Id">
+                                            <i class="bi @(isLiked ? "bi-hand-thumbs-up-fill" : "bi-hand-thumbs-up")"></i>
+                                            <span class="like-text">@(isLiked ? "Liked" : "Like")</span>
+                                            <span class="like-count">@likeCount</span>
+                                        </button>
+
+                                        <button class="btn btn-outline-secondary btn-sm comment-toggle-btn"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#comments-@post.Id">
+                                            <i class="bi bi-chat-left"></i> Comment
+                                        </button>
+
+                                        <button class="btn btn-outline-secondary btn-sm group-share-btn" data-post-id="@post.Id">
+                                            <i class="bi bi-share"></i> Share
+                                        </button>
+                                    </div>
+
+                                    <!-- Comments Section -->
+                                    <div class="collapse mt-3 comments-section" id="comments-@post.Id" data-post-id="@post.Id">
+                                        <div class="comments-container mb-3">
+                                            @if (post.Comments.Any())
+                                            {
+                                                foreach (var comment in post.Comments.OrderByDescending(c => c.CreatedAt).Take(3))
+                                                {
+                                                    <div class="d-flex mb-2 comment-item" data-comment-id="@comment.Id">
+                                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2"
+                                                             style="width: 32px; height: 32px;">
+                                                            <i class="bi bi-person text-white" style="font-size: 12px;"></i>
+                                                        </div>
+                                                        <div class="flex-grow-1">
+                                                            <div class="bg-light rounded p-2">
+                                                                <strong>@comment.User.UserName</strong>
+                                                                <p class="mb-1">@comment.Content</p>
+                                                                <small class="text-muted">@comment.CreatedAt.ToString("MMM dd, hh:mm tt")</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                }
+
+                                                @if (post.Comments.Count > 3)
+                                                {
+                                                    <button class="btn btn-sm btn-link text-primary view-all-comments"
+                                                            data-post-id="@post.Id">
+                                                        View all @post.Comments.Count comments
+                                                    </button>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <p class="text-muted text-center no-comments-text">No comments yet</p>
+                                            }
+                                        </div>
+
+                                        <!-- Add Comment Form -->
+                                        <form class="group-comment-form" data-post-id="@post.Id">
+                                            <div class="input-group">
+                                                <input type="text" name="content" class="form-control comment-input"
+                                                       placeholder="Write a comment..." required>
+                                                <button class="btn btn-primary" type="submit">
+                                                    <i class="bi bi-send"></i>
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <i class="bi bi-chat-left-text text-muted" style="font-size: 64px;"></i>
+                            </div>
+                            <h4>No posts yet</h4>
+                            <p class="text-muted mb-4">
+                                @if (ViewBag.IsMember)
+                                {
+                                    <text>Be the first to share something in this group!</text>
+                                }
+                                else
+                                {
+                                    <text>Join the group to see posts</text>
+                                }
+                            </p>
+                            @if (ViewBag.IsMember)
+                            {
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPostModal">
+                                    <i class="bi bi-plus-circle"></i> Create First Post
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+                @if (Model.Posts.Count > 10)
+                {
+                    <div class="card-footer">
+                        <button class="btn btn-outline-primary w-100" id="loadMorePostsBtn" data-page="2">
+                            <i class="bi bi-arrow-down"></i> Load More Posts
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Right Column: Group Info & Members -->
+        <div class="col-lg-4">
+            <!-- About Group -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> About This Group</h6>
+                </div>
+                <div class="card-body">
+                    <p>@Model.Description</p>
+
+                    <hr>
+
+                    <div class="mb-2">
+                        <strong><i class="bi bi-person-badge"></i> Created By:</strong>
+                        <p class="mb-0">
+                            <a asp-controller="Profile" asp-action="View" asp-route-id="@Model.CreatedById"
+                               class="text-decoration-none">
+                                @Model.CreatedBy.UserName
+                            </a>
+                        </p>
+                    </div>
+
+                    <div class="mb-2">
+                        <strong><i class="bi bi-calendar"></i> Created:</strong>
+                        <p class="mb-0">@Model.CreatedAt.ToString("MMMM dd, yyyy")</p>
+                    </div>
+
+                    <div class="mb-2">
+                        <strong><i class="bi bi-shield"></i> Privacy:</strong>
+                        <p class="mb-0">
+                            @if (Model.IsPrivate)
+                            {
+                                <span class="badge bg-warning">Private</span>
+                                <small class="text-muted d-block">Requires approval to join</small>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Public</span>
+                                <small class="text-muted d-block">Anyone can join</small>
+                            }
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Group Members -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="bi bi-people"></i> Members
+                        <span class="badge bg-primary">@Model.Members.Count</span>
+                    </h6>
+                    @if (ViewBag.IsAdmin)
+                    {
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#manageMembersModal">
+                            <i class="bi bi-gear"></i>
+                        </button>
+                    }
+                </div>
+                <div class="card-body">
+                    <div class="row g-2" id="groupMembers">
+                        @foreach (var member in Model.Members.OrderByDescending(m => m.Role).Take(12))
+                        {
+                            <div class="col-4 col-md-3 text-center mb-3">
+                                <div class="position-relative">
+                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto"
+                                         style="width: 60px; height: 60px;">
+                                        <i class="bi bi-person text-white"></i>
+                                    </div>
+                                    @if (member.Role == GroupMemberRole.Admin)
+                                    {
+                                        <span class="position-absolute top-0 start-100 translate-middle badge bg-danger"
+                                              style="font-size: 0.5em;">
+                                            <i class="bi bi-star-fill"></i>
+                                        </span>
+                                    }
+                                </div>
+                                <div class="mt-1">
+                                    <small class="d-block text-truncate" style="max-width: 80px;"
+                                           title="@member.User.UserName">
+                                        @member.User.UserName
+                                    </small>
+                                    @if (member.Role == GroupMemberRole.Admin)
+                                    {
+                                        <small class="text-muted d-block">Admin</small>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @if (Model.Members.Count > 12)
+                    {
+                        <div class="text-center mt-3">
+                            <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#allMembersModal">
+                                View All @Model.Members.Count Members
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Group Rules -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-list-check"></i> Group Rules</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li class="mb-2">Be respectful to all members</li>
+                        <li class="mb-2">No spam or self-promotion</li>
+                        <li class="mb-2">Stay on topic</li>
+                        <li>Follow community guidelines</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<!-- Create Post Modal -->
+<div class="modal fade" id="createPostModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Post in @Model.Name</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createGroupPostForm"
+                  asp-action="CreateGroupPost"
+                  asp-controller="Groups"
+                  method="post"
+                  enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="groupId" value="@Model.Id" />
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <textarea name="content" class="form-control" rows="4"
+                                  placeholder="What would you like to share with the group?" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                        <div class="form-text">Optional: Upload an image for your post</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Post</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Group Modal (Admin Only) -->
+@if (ViewBag.IsAdmin)
+{
+    <div class="modal fade" id="editGroupModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Group Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Group Name</label>
+                            <input type="text" name="name" class="form-control" value="@Model.Name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="3" required>@Model.Description</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cover Image</label>
+                            <input type="file" name="coverImage" class="form-control" accept="image/*">
+                            @if (!string.IsNullOrEmpty(Model.CoverImageUrl))
+                            {
+                                <div class="mt-2">
+                                    <small>Current: <a href="@Model.CoverImageUrl" target="_blank">View</a></small>
+                                </div>
+                            }
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="isPrivate"
+                                   id="editIsPrivate" @(Model.IsPrivate ? "checked" : "")>
+                            <label class="form-check-label" for="editIsPrivate">
+                                Private Group (requires approval to join)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Manage Members Modal (Admin Only) -->
+@if (ViewBag.IsAdmin)
+{
+    <div class="modal fade" id="manageMembersModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Manage Members - @Model.Name</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Member</th>
+                                    <th>Role</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="membersTableBody">
+                                <!-- Members will be loaded via AJAX -->
+                                <tr>
+                                    <td colspan="4" class="text-center">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        Loading members...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- All Members Modal -->
+<div class="modal fade" id="allMembersModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">All Members - @Model.Name</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row" id="allMembersList">
+                    <!-- Members will be loaded via AJAX -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize tooltips and popovers
+            $('[data-bs-toggle="tooltip"]').tooltip();
+            $('[data-bs-toggle="popover"]').popover();
+
+            // Join group with AJAX
+            $('.join-group-btn').click(function() {
+                const button = $(this);
+                const groupId = button.data('group-id');
+
+                button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Joining...');
+
+                $.ajax({
+                    url: '@Url.Action("Join", "Groups")',
+                    type: 'POST',
+                    data: { groupId: groupId },
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            showToast(response.message, 'success');
+                            setTimeout(() => {
+                                location.reload();
+                            }, 1500);
+                        } else {
+                            showToast(response.message, 'error');
+                            button.prop('disabled', false).html('<i class="bi bi-plus-circle"></i> Join Group');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error joining group:', error);
+                        showToast('Failed to join group. Please try again.', 'error');
+                        button.prop('disabled', false).html('<i class="bi bi-plus-circle"></i> Join Group');
+                    }
+                });
+            });
+
+            // Leave group with AJAX
+            $('.leave-group-btn').click(function() {
+                if (!confirm('Are you sure you want to leave this group?')) return;
+
+                const button = $(this);
+                const groupId = button.data('group-id');
+
+                button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Leaving...');
+
+                $.ajax({
+                    url: '@Url.Action("Leave", "Groups")',
+                    type: 'POST',
+                    data: { groupId: groupId },
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            showToast(response.message, 'success');
+                            setTimeout(() => {
+                                window.location.href = '@Url.Action("Index", "Groups")';
+                            }, 1500);
+                        } else {
+                            showToast(response.message, 'error');
+                            button.prop('disabled', false).html('<i class="bi bi-box-arrow-right"></i> Leave Group');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error leaving group:', error);
+                        showToast('Failed to leave group. Please try again.', 'error');
+                        button.prop('disabled', false).html('<i class="bi bi-box-arrow-right"></i> Leave Group');
+                    }
+                });
+            });
+
+            // Create group post with AJAX
+            $('#createGroupPostForm').submit(function(e) {
+                e.preventDefault();
+                const form = $(this);
+                const groupId = form.find('input[name="groupId"]').val();
+                const content = form.find('textarea[name="content"]').val();
+                const imageInput = form.find('input[name="image"]')[0];
+
+                if (!content.trim()) {
+                    showToast('Please enter some content for your post.', 'warning');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('groupId', groupId);
+                formData.append('content', content);
+
+                if (imageInput && imageInput.files.length > 0) {
+                    formData.append('image', imageInput.files[0]);
+                }
+
+                const submitBtn = form.find('button[type="submit"]');
+                submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Posting...');
+
+                $.ajax({
+                    url: '/Groups/CreateGroupPost',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'RequestVerificationToken': form.find('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            showToast(response.message, 'success');
+                            $('#createPostModal').modal('hide');
+                            form[0].reset();
+                            // Reload posts
+                            loadGroupPosts(1);
+                        } else {
+                            showToast(response.message || 'Failed to create post', 'error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error creating post:', xhr.status, xhr.statusText, error);
+                        if (xhr.status === 405) {
+                            showToast('Method not allowed. Please check if you are authorized.', 'error');
+                        } else {
+                            showToast('Failed to create post. Please try again.', 'error');
+                        }
+                    },
+                    complete: function() {
+                        submitBtn.prop('disabled', false).html('<i class="bi bi-pencil"></i> Post');
+                    }
+                });
+            });
+
+            // Like button functionality with AJAX
+            $(document).on('click', '.group-like-btn', function() {
+                const button = $(this);
+                const postId = button.data('post-id');
+                const likeCountSpan = button.find('.like-count');
+                const likeDisplaySpan = button.closest('.group-post').find('.like-count-display');
+                const likeText = button.find('.like-text');
+                const icon = button.find('i');
+
+                button.prop('disabled', true);
+
+                $.ajax({
+                    url: '@Url.Action("LikePost", "Home")',
+                    type: 'POST',
+                    data: { postId: postId },
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            // Update button appearance
+                            if (response.isLiked) {
+                                button.removeClass('btn-outline-primary').addClass('btn-primary');
+                                icon.removeClass('bi-hand-thumbs-up').addClass('bi-hand-thumbs-up-fill');
+                                likeText.text('Liked');
+                            } else {
+                                button.removeClass('btn-primary').addClass('btn-outline-primary');
+                                icon.removeClass('bi-hand-thumbs-up-fill').addClass('bi-hand-thumbs-up');
+                                likeText.text('Like');
+                            }
+
+                            // Update like counts
+                            likeCountSpan.text(response.likeCount);
+                            likeDisplaySpan.text(response.likeCount);
+
+                            // Add animation
+                            button.addClass('animate-like');
+                            setTimeout(() => {
+                                button.removeClass('animate-like');
+                            }, 600);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error liking post:', error);
+                        showToast('Failed to like post. Please try again.', 'error');
+                    },
+                    complete: function() {
+                        button.prop('disabled', false);
+                    }
+                });
+            });
+
+            // Add comment with AJAX
+            $(document).on('submit', '.group-comment-form', function(e) {
+                e.preventDefault();
+                const form = $(this);
+                const postId = form.data('post-id');
+                const content = form.find('.comment-input').val().trim();
+                const commentsContainer = form.closest('.comments-section').find('.comments-container');
+                const commentsCount = form.closest('.group-post').find('.comment-count-number');
+                const noCommentsText = commentsContainer.find('.no-comments-text');
+
+                if (!content) return;
+
+                const submitBtn = form.find('button[type="submit"]');
+                submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span>');
+
+                $.ajax({
+                    url: '@Url.Action("AddComment", "Home")',
+                    type: 'POST',
+                    data: {
+                        postId: postId,
+                        content: content
+                    },
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            form.find('.comment-input').val('');
+
+                            // Create new comment element
+                            const now = new Date();
+                            const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            const dateString = now.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+
+                            const newCommentHtml = `
+                                <div class="d-flex mb-2 comment-item">
+                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2"
+                                         style="width: 32px; height: 32px;">
+                                        <i class="bi bi-person text-white" style="font-size: 12px;"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="bg-light rounded p-2">
+                                            <strong>@User.Identity.Name</strong>
+                                            <p class="mb-1">${content}</p>
+                                            <small class="text-muted">${dateString}, ${timeString}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+
+                            // Remove "no comments" text if it exists
+                            if (noCommentsText.length) {
+                                noCommentsText.remove();
+                            }
+
+                            // Add new comment
+                            const viewAllBtn = commentsContainer.find('.view-all-comments');
+                            if (viewAllBtn.length) {
+                                viewAllBtn.before(newCommentHtml);
+                            } else {
+                                commentsContainer.prepend(newCommentHtml);
+                            }
+
+                            // Update comment count
+                            const currentCount = parseInt(commentsCount.text()) || 0;
+                            commentsCount.text(currentCount + 1);
+
+                            // Update view all link
+                            if (viewAllBtn.length) {
+                                const totalComments = parseInt(viewAllBtn.text().match(/\d+/)[0]) + 1;
+                                viewAllBtn.text(`View all ${totalComments} comments`);
+                            }
+
+                            showToast('Comment added successfully!', 'success');
+
+                            // Add fade-in animation
+                            const newComment = commentsContainer.find('.comment-item').first();
+                            newComment.addClass('comment-fade-in');
+                            setTimeout(() => {
+                                newComment.removeClass('comment-fade-in');
+                            }, 300);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error adding comment:', error);
+                        showToast('Failed to add comment. Please try again.', 'error');
+                    },
+                    complete: function() {
+                        submitBtn.prop('disabled', false).html('<i class="bi bi-send"></i>');
+                    }
+                });
+            });
+
+            // Remove post (admin only)
+            $(document).on('click', '.remove-post-btn', function(e) {
+                e.preventDefault();
+                const link = $(this);
+                const postId = link.data('post-id');
+                const groupId = link.data('group-id');
+
+                if (!confirm('Are you sure you want to remove this post from the group?')) return;
+
+                $.ajax({
+                    url: '@Url.Action("RemovePostFromGroup", "Groups")',
+                    type: 'POST',
+                    data: {
+                        groupId: groupId,
+                        postId: postId
+                    },
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            showToast(response.message, 'success');
+                            $(`#post-${postId}`).fadeOut(300, function() {
+                                $(this).remove();
+                            });
+                        } else {
+                            showToast(response.message, 'error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error removing post:', error);
+                        showToast('Failed to remove post. Please try again.', 'error');
+                    }
+                });
+            });
+
+            // Load group members for management modal
+            $('#manageMembersModal').on('shown.bs.modal', function() {
+                loadGroupMembersForManagement();
+            });
+
+            // Load all members modal
+            $('#allMembersModal').on('shown.bs.modal', function() {
+                loadAllMembers();
+            });
+
+            // Refresh posts button
+            $('#refreshPostsBtn').click(function() {
+                loadGroupPosts(1);
+            });
+
+            // Load more posts button
+            $('#loadMorePostsBtn').click(function() {
+                const button = $(this);
+                const page = button.data('page');
+                loadGroupPosts(page);
+            });
+
+            // Share button
+            $(document).on('click', '.group-share-btn', function() {
+                const postId = $(this).data('post-id');
+                const postUrl = window.location.origin + '/Home/Feed#post-' + postId;
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(postUrl).then(function() {
+                        showToast('Post link copied to clipboard!', 'success');
+                    }).catch(function(err) {
+                        console.error('Could not copy text: ', err);
+                        fallbackCopyToClipboard(postUrl);
+                    });
+                } else {
+                    fallbackCopyToClipboard(postUrl);
+                }
+            });
+
+            // Function to load group posts via AJAX
+            function loadGroupPosts(page) {
+                const button = page > 1 ? $('#loadMorePostsBtn') : null;
+                const groupId = @Model.Id;
+
+                if (button) {
+                    button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Loading...');
+                } else {
+                    $('#postsContainer').html(`
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading posts...</p>
+                        </div>
+                    `);
+                }
+
+                $.ajax({
+                    url: '@Url.Action("GetGroupPosts", "Groups")',
+                    type: 'GET',
+                    data: {
+                        groupId: groupId,
+                        page: page,
+                        pageSize: 10
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            if (page === 1) {
+                                renderPosts(response.posts);
+                            } else {
+                                appendPosts(response.posts);
+                            }
+
+                            // Update load more button
+                            if (response.hasMore) {
+                                $('#loadMorePostsBtn').data('page', page + 1).show();
+                            } else {
+                                $('#loadMorePostsBtn').hide();
+                            }
+                        } else {
+                            showToast(response.message || 'Failed to load posts', 'error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error loading posts:', error);
+                        showToast('Failed to load posts. Please try again.', 'error');
+                    },
+                    complete: function() {
+                        if (button) {
+                            button.prop('disabled', false).html('<i class="bi bi-arrow-down"></i> Load More Posts');
+                        }
+                    }
+                });
+            }
+
+            // Function to render posts
+            function renderPosts(posts) {
+                if (posts.length === 0) {
+                    $('#postsContainer').html(`
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <i class="bi bi-chat-left-text text-muted" style="font-size: 64px;"></i>
+                            </div>
+                            <h4>No posts yet</h4>
+                            <p class="text-muted mb-4">
+                                @if (ViewBag.IsMember)
+                                {
+                                        <text>Be the first to share something in this group!</text>
+                                }
+                                else
+                                {
+                                        <text>Join the group to see posts</text>
+                                }
+                            </p>
+                            @if (ViewBag.IsMember)
+                            {
+                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPostModal">
+                                        <i class="bi bi-plus-circle"></i> Create First Post
+                                    </button>
+                            }
+                        </div>
+                    `);
+                    return;
+                }
+
+                let html = '';
+                posts.forEach(post => {
+                    html += `
+                        <div class="card mb-3 group-post" id="post-${post.id}" data-post-id="${post.id}">
+                            <div class="card-body">
+                                <!-- Post Header -->
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3"
+                                             style="width: 40px; height: 40px;">
+                                            <i class="bi bi-person text-white"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">${post.userName}</h6>
+                                            <small class="text-muted">
+                                                Shared in @Model.Name • ${post.createdAt}
+                                                <span class="post-time-ago">(${post.timeAgo})</span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary" type="button"
+                                                data-bs-toggle="dropdown">
+                                            <i class="bi bi-three-dots"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#"><i class="bi bi-flag"></i> Report</a></li>
+                                            @if (ViewBag.IsAdmin)
+                                            {
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <a class="dropdown-item text-danger remove-post-btn"
+                                                           href="#" data-post-id="${post.id}" data-group-id="@Model.Id">
+                                                            <i class="bi bi-trash"></i> Remove
+                                                        </a>
+                                                    </li>
+                                            }
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <!-- Post Content -->
+                                <p class="mb-3">${post.content}</p>
+
+                                ${post.imageUrl ? `<img src="${post.imageUrl}" class="img-fluid rounded mb-3" alt="Post image" style="max-height: 400px;">` : ''}
+
+                                <!-- Post Stats -->
+                                <div class="d-flex justify-content-between mb-3">
+                                    <div>
+                                        <span class="text-muted me-3">
+                                            <i class="bi bi-hand-thumbs-up"></i> <span class="like-count-display">${post.likeCount}</span> likes
+                                        </span>
+                                        <span class="text-muted comments-count-display" data-post-id="${post.id}">
+                                            <i class="bi bi-chat-left"></i> <span class="comment-count-number">${post.commentCount}</span> comments
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Post Actions -->
+                                <div class="d-flex gap-2">
+                                    <button type="button"
+                                            class="btn btn-sm group-like-btn ${post.isLiked ? 'btn-primary' : 'btn-outline-primary'}"
+                                            data-post-id="${post.id}">
+                                        <i class="bi ${post.isLiked ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up'}"></i>
+                                        <span class="like-text">${post.isLiked ? 'Liked' : 'Like'}</span>
+                                        <span class="like-count">${post.likeCount}</span>
+                                    </button>
+
+                                    <button class="btn btn-outline-secondary btn-sm comment-toggle-btn"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#comments-${post.id}">
+                                        <i class="bi bi-chat-left"></i> Comment
+                                    </button>
+
+                                    <button class="btn btn-outline-secondary btn-sm group-share-btn" data-post-id="${post.id}">
+                                        <i class="bi bi-share"></i> Share
+                                    </button>
+                                </div>
+
+                                <!-- Comments Section -->
+                                <div class="collapse mt-3 comments-section" id="comments-${post.id}" data-post-id="${post.id}">
+                                    <div class="comments-container mb-3">
+                                        ${post.comments.length > 0 ? renderComments(post.comments) : '<p class="text-muted text-center no-comments-text">No comments yet</p>'}
+                                    </div>
+
+                                    <!-- Add Comment Form -->
+                                    <form class="group-comment-form" data-post-id="${post.id}">
+                                        <div class="input-group">
+                                            <input type="text" name="content" class="form-control comment-input"
+                                                   placeholder="Write a comment..." required>
+                                            <button class="btn btn-primary" type="submit">
+                                                <i class="bi bi-send"></i>
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                $('#postsContainer').html(html);
+            }
+
+            // Function to render comments
+            function renderComments(comments) {
+                let html = '';
+                comments.forEach(comment => {
+                    html += `
+                        <div class="d-flex mb-2 comment-item" data-comment-id="${comment.id}">
+                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2"
+                                 style="width: 32px; height: 32px;">
+                                <i class="bi bi-person text-white" style="font-size: 12px;"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="bg-light rounded p-2">
+                                    <strong>${comment.userName}</strong>
+                                    <p class="mb-1">${comment.content}</p>
+                                    <small class="text-muted">${comment.createdAt}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                return html;
+            }
+
+            // Function to append posts (for load more)
+            function appendPosts(posts) {
+                posts.forEach(post => {
+                    const postHtml = `
+                        <div class="card mb-3 group-post" id="post-${post.id}" data-post-id="${post.id}">
+                            <!-- Same post structure as in renderPosts -->
+                        </div>
+                    `;
+                    $('#postsContainer').append(postHtml);
+                });
+            }
+
+            // Function to load group members for management
+            function loadGroupMembersForManagement() {
+                const groupId = @Model.Id;
+
+                $.ajax({
+                    url: '@Url.Action("GetGroupMembers", "Groups")',
+                    type: 'GET',
+                    data: { groupId: groupId },
+                    success: function(response) {
+                        if (response.success) {
+                            let html = '';
+                            response.members.forEach(member => {
+                                html += `
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2"
+                                                     style="width: 32px; height: 32px;">
+                                                    <i class="bi bi-person text-white"></i>
+                                                </div>
+                                                <div>
+                                                    <div>${member.userName}</div>
+                                                    <small class="text-muted">${member.email}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge ${member.role === 'Admin' ? 'bg-danger' : 'bg-secondary'}">
+                                                ${member.role}
+                                            </span>
+                                        </td>
+                                        <td>${member.joinedAt}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary"
+                                                        onclick="updateMemberRole(${groupId}, '${member.id}', 'Admin')"
+                                                        ${member.role === 'Admin' ? 'disabled' : ''}>
+                                                    Make Admin
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger"
+                                                        onclick="removeMember(${groupId}, '${member.id}')"
+                                                        ${member.id === '@currentUserId' ? 'disabled' : ''}>
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+                            $('#membersTableBody').html(html);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error loading members:', error);
+                        $('#membersTableBody').html(`
+                            <tr>
+                                <td colspan="4" class="text-center text-danger">
+                                    Failed to load members
+                                </td>
+                            </tr>
+                        `);
+                    }
+                });
+            }
+
+            // Function to load all members
+            function loadAllMembers() {
+                const groupId = @Model.Id;
+
+                $.ajax({
+                    url: '@Url.Action("GetGroupMembers", "Groups")',
+                    type: 'GET',
+                    data: { groupId: groupId },
+                    success: function(response) {
+                        if (response.success) {
+                            let html = '';
+                            response.members.forEach(member => {
+                                html += `
+                                    <div class="col-4 col-md-3 text-center mb-3">
+                                        <div class="position-relative">
+                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto"
+                                                 style="width: 60px; height: 60px;">
+                                                <i class="bi bi-person text-white"></i>
+                                            </div>
+                                            ${member.role === 'Admin' ?
+                                                `<span class="position-absolute top-0 start-100 translate-middle badge bg-danger" style="font-size: 0.5em;">
+                                                    <i class="bi bi-star-fill"></i>
+                                                </span>` : ''}
+                                        </div>
+                                        <div class="mt-1">
+                                            <small class="d-block text-truncate" style="max-width: 80px;"
+                                                   title="${member.userName}">
+                                                ${member.userName}
+                                            </small>
+                                            ${member.role === 'Admin' ? '<small class="text-muted d-block">Admin</small>' : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                            $('#allMembersList').html(html);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error loading all members:', error);
+                        $('#allMembersList').html('<div class="col-12 text-center text-danger">Failed to load members</div>');
+                    }
+                });
+            }
+
+            // Fallback for clipboard copy
+            function fallbackCopyToClipboard(text) {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                try {
+                    document.execCommand('copy');
+                    showToast('Post link copied to clipboard!', 'success');
+                } catch (err) {
+                    console.error('Fallback: Could not copy text: ', err);
+                    showToast('Failed to copy link. Please try again.', 'error');
+                }
+
+                document.body.removeChild(textArea);
+            }
+
+            // Helper function to show toast messages
+            function showToast(message, type = 'info') {
+                if (!$('#toastContainer').length) {
+                    $('body').append(`<div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050"></div>`);
+                }
+
+                const bgColor = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : type === 'warning' ? 'bg-warning' : 'bg-primary';
+                const toastId = 'toast-' + Date.now();
+                const toastHtml = `
+                    <div id="${toastId}" class="toast ${bgColor} text-white" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <i class="bi ${type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-exclamation-circle' : 'bi-info-circle'} me-2"></i>
+                                ${message}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                        </div>
+                    </div>
+                `;
+
+                $('#toastContainer').append(toastHtml);
+                const toastElement = document.getElementById(toastId);
+                const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+                toast.show();
+
+                toastElement.addEventListener('hidden.bs.toast', function () {
+                    $(this).remove();
+                });
+            }
+        });
+
+        // Global functions for member management
+        function updateMemberRole(groupId, userId, newRole) {
+            if (!confirm(`Are you sure you want to make this member an ${newRole}?`)) return;
+
+            $.ajax({
+                url: '@Url.Action("UpdateMemberRole", "Groups")',
+                type: 'POST',
+                data: {
+                    groupId: groupId,
+                    targetUserId: userId,
+                    newRole: newRole
+                },
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showToast(response.message, 'success');
+                        // Reload members table
+                        $('#manageMembersModal').modal('hide');
+                        setTimeout(() => {
+                            $('#manageMembersModal').modal('show');
+                        }, 500);
+                    } else {
+                        showToast(response.message, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error updating member role:', error);
+                    showToast('Failed to update member role. Please try again.', 'error');
+                }
+            });
+        }
+
+        function removeMember(groupId, userId) {
+            if (!confirm('Are you sure you want to remove this member from the group?')) return;
+
+            $.ajax({
+                url: '@Url.Action("RemoveMember", "Groups")',
+                type: 'POST',
+                data: {
+                    groupId: groupId,
+                    targetUserId: userId
+                },
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showToast(response.message, 'success');
+                        // Reload members table
+                        $('#manageMembersModal').modal('hide');
+                        setTimeout(() => {
+                            $('#manageMembersModal').modal('show');
+                        }, 500);
+                    } else {
+                        showToast(response.message, 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error removing member:', error);
+                    showToast('Failed to remove member. Please try again.', 'error');
+                }
+            });
+        }
+    </script>
+
+}
