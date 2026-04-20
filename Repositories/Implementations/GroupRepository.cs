@@ -33,6 +33,7 @@ namespace semproject.Repositories.Implementations
                         existingGroup = group;
                         existingGroup.CreatedBy = createdBy;
                         existingGroup.Members = new List<GroupMember>();
+                        existingGroup.MemberCount = group.MemberCount;
                         groupDictionary.Add(existingGroup.Id, existingGroup);
                     }
                     return existingGroup;
@@ -83,6 +84,7 @@ namespace semproject.Repositories.Implementations
                         existingGroup = group;
                         existingGroup.CreatedBy = createdBy;
                         existingGroup.Members = new List<GroupMember>();
+                        existingGroup.MemberCount = group.MemberCount;
                         groupDictionary.Add(existingGroup.Id, existingGroup);
                     }
                     return existingGroup;
@@ -147,6 +149,7 @@ namespace semproject.Repositories.Implementations
                         existingGroup = group;
                         existingGroup.CreatedBy = createdBy;
                         existingGroup.Members = new List<GroupMember>();
+                        existingGroup.MemberCount = group.MemberCount;
                         groupDictionary.Add(existingGroup.Id, existingGroup);
                     }
                     return existingGroup;
@@ -175,6 +178,7 @@ namespace semproject.Repositories.Implementations
                         existingGroup = group;
                         existingGroup.CreatedBy = createdBy;
                         existingGroup.Members = new List<GroupMember>();
+                        existingGroup.MemberCount = group.MemberCount;
                         groupDictionary.Add(existingGroup.Id, existingGroup);
                     }
                     return existingGroup;
@@ -226,7 +230,7 @@ namespace semproject.Repositories.Implementations
                 INNER JOIN Posts p ON gp.PostId = p.Id
                 LEFT JOIN AspNetUsers u ON p.UserId = u.Id
                 WHERE gp.GroupId = @GroupId
-                ORDER BY gp.SharedAt DESC";
+                ";
 
             var groupPostDictionary = new Dictionary<int, GroupPost>();
             var groupPosts = await _db.QueryAsync<GroupPost, Post, IdentityUser, GroupPost>(
@@ -379,19 +383,17 @@ namespace semproject.Repositories.Implementations
                 throw new InvalidOperationException("This post is already shared in this group");
 
             var insertQuery = @"
-                INSERT INTO GroupPosts (GroupId, PostId, SharedBy, SharedAt)
-                VALUES (@GroupId, @PostId, @SharedBy, @SharedAt);
+                INSERT INTO GroupPosts (GroupId, PostId)
+                VALUES (@GroupId, @PostId);
                 SELECT CAST(SCOPE_IDENTITY() as int)";
 
             var id = await _db.ExecuteScalarAsync<int>(insertQuery, new
             {
                 GroupId = groupId,
-                PostId = postId,
-                SharedBy = userId,
-                SharedAt = DateTime.UtcNow
+                PostId = postId
             });
 
-            return new GroupPost { Id = id, GroupId = groupId, PostId = postId, SharedAt = DateTime.UtcNow };
+            return new GroupPost { Id = id, GroupId = groupId, PostId = postId };
         }
     }
 }

@@ -72,6 +72,23 @@ a:hover {
   position: relative;
 }
 
+/* Improve login form spacing when using Identity pages (centers form and adds negative space from sidebar) */
+form[action*="/Identity/Account/Login"] {
+  max-width: 440px;
+  margin: 48px auto;
+  background: var(--bf-surface-strong);
+  padding: 1.25rem 1.25rem;
+  border-radius: 14px;
+  box-shadow: var(--bf-shadow-md);
+  border: 1px solid var(--bf-border);
+}
+
+/* Make login form inputs a bit larger and friendlier */
+form[action*="/Identity/Account/Login"] .form-control {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+}
+
 .main-content::before {
   content: "";
   position: absolute;
@@ -85,6 +102,146 @@ a:hover {
   );
   pointer-events: none;
   opacity: 0.45;
+}
+
+/* Toned-down, compact follow buttons used across feed/profile cards */
+.follow-user-btn {
+  padding: 0.28rem 0.6rem;
+  font-size: 0.78rem;
+  border-radius: 999px;
+  min-width: 92px;
+  white-space: nowrap;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.follow-user-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(31, 122, 224, 0.12);
+}
+
+/* Group cover improvements */
+.group-cover-img {
+  width: 100%;
+  /* responsive cover height so it fits the container on different screens */
+  height: clamp(220px, 28vw, 360px);
+  object-fit: cover;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  display: block;
+  box-shadow: var(--bf-shadow-sm);
+}
+
+/* Slightly tighter cards for posts to improve visual density */
+.card {
+  border-radius: 12px;
+}
+.card-body {
+  padding: 0.75rem 0.85rem;
+}
+
+/* Compact group post styles so more posts fit on one screen */
+.group-post {
+  margin-bottom: 0.6rem;
+}
+.group-post .card-body {
+  padding: 0.65rem 0.85rem;
+}
+.group-post .d-flex.align-items-center .rounded-circle {
+  width: 36px !important;
+  height: 36px !important;
+  font-size: 0.9rem !important;
+}
+.group-post h6 {
+  font-size: 0.95rem;
+  margin-bottom: 0.15rem;
+}
+.group-post p.mb-3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.6rem;
+}
+.group-post img {
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.group-post .d-flex.gap-2 .btn {
+  padding: 0.28rem 0.5rem;
+  font-size: 0.82rem;
+}
+
+/* Reduce spacing in post stats area */
+.group-post .d-flex.justify-content-between.mb-3 {
+  margin-bottom: 0.45rem;
+}
+
+/* Stronger override when on login page: add clear negative space from sidebars and center the form */
+/* Center login vertically so users don't need to scroll to reach the button */
+/* Auth pages (login/register) centered layout */
+.identity-auth-page .main-content {
+  display: flex;
+  align-items: center; /* vertical center */
+  justify-content: center; /* horizontal center */
+  min-height: calc(100vh - 90px); /* account for header/footer */
+  padding-top: 0;
+}
+.identity-auth-page .main-content form,
+.identity-auth-page .main-content .auth-card,
+.identity-auth-page form[action*="/Identity/Account/Login"],
+.identity-auth-page form[action*="/Account/Login"],
+.identity-auth-page form[action*="/Identity/Account/Register"],
+.identity-auth-page form[action*="/Account/Register"] {
+  width: 360px !important;
+  max-width: calc(100% - 48px) !important;
+  margin: 0 auto !important;
+  padding: 1rem 1rem !important;
+  border-radius: 12px !important;
+  box-shadow: var(--bf-shadow-sm) !important;
+  background: var(--bf-surface-strong) !important;
+  border: 1px solid var(--bf-border) !important;
+}
+
+/* Stronger centering and negative-space effect for login: push form away from left edge */
+.identity-auth-page .main-content {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+/* Reduce global large button sizes on login page */
+.identity-auth-page .btn {
+  padding: 0.36rem 0.6rem !important;
+  font-size: 0.88rem !important;
+}
+
+/* Smaller inputs and button sizing inside the login form */
+.identity-login-page .form-control {
+  padding: 0.5rem 0.6rem !important;
+  font-size: 0.95rem !important;
+}
+.identity-login-page .btn-primary {
+  padding: 0.45rem 0.9rem !important;
+  font-size: 0.95rem !important;
+}
+
+/* Ensure identity links in the navbar appear subtle on login pages */
+.identity-login-page .nav-link {
+  opacity: 0.9;
+  padding: 0.35rem 0.6rem;
+}
+
+/* Reduce size of follower/following buttons across the app */
+.followers-btn,
+.following-btn,
+.follow-user-btn,
+.btn-follow {
+  padding: 0.28rem 0.6rem !important;
+  font-size: 0.78rem !important;
+  border-radius: 999px !important;
+  min-width: 84px !important;
+}
+
+/* Ensure group cover overlay text remains readable on smaller widths */
+.group-cover-img + .position-absolute {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
 }
 
 .main-content > * {
@@ -1070,5 +1227,38 @@ small.text-muted {
   .group-post:hover,
   .quick-link:hover {
     transform: none;
+  }
+}
+
+/* Constrain posts column so cards don't stretch full width */
+#postsContainer,
+.posts-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* center post cards */
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.post-card,
+.group-post,
+.card.post-card {
+  width: 100%;
+  max-width: 740px; /* keep cards readable and centered */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Slightly smaller images inside posts so cards fit better on screen */
+.post-card img,
+.group-post img {
+  max-height: 220px;
+  object-fit: cover;
+}
+
+@media (min-width: 1200px) {
+  .post-card,
+  .group-post {
+    max-width: 820px;
   }
 }

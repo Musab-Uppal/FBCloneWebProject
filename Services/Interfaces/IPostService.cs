@@ -10,7 +10,7 @@ namespace semproject.Services.Interfaces
         Task<List<Post>> GetAllPostsAsync(int page = 1, int pageSize = 20);
         Task<Post> GetPostByIdAsync(int postId);
         Task<List<Post>> GetUserPostsAsync(string userId, int page = 1, int pageSize = 20);
-        Task<Post> CreatePostAsync(Post post);
+        Task<Post> CreatePostAsync(Post post, bool isGroupPost = false, int? groupId = null);
         Task<bool> UpdatePostAsync(Post post);
         Task<bool> UpdatePostContentAsync(int postId, string content, string userId);
         Task<bool> DeletePostAsync(int postId);

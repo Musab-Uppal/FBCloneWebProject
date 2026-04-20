@@ -70,7 +70,7 @@ namespace semproject.Controllers
             switch (sort)
             {
                 case "popular":
-                    groups = groups.OrderByDescending(g => g.Members?.Count ?? 0).ToList();
+                    groups = groups.OrderByDescending(g => g.MemberCount > 0 ? g.MemberCount : (g.Members?.Count ?? 0)).ToList();
                     break;
                 case "name":
                     groups = groups.OrderBy(g => g.Name).ToList();
@@ -276,10 +276,36 @@ namespace semproject.Controllers
             return RedirectToAction("Details", new { id = groupId });
         }
 
+        [HttpGet]
+        public async Task<IActionResult> CreateGroupPostView(int groupId)
+        {
+            var group = await _groupsService.GetGroupByIdAsync(groupId);
+            if (group == null)
+            {
+                return NotFound();
+            }
+
+            var userId = _userManager.GetUserId(User);
+            var isMember = await _groupsService.IsUserMemberAsync(groupId, userId);
+            if (!isMember)
+            {
+                TempData["ErrorMessage"] = "You must be a member to post in this group.";
+                return RedirectToAction("Details", new { id = groupId });
+            }
+
+            return View("CreateGroupPost", group);
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateGroupPost(int groupId, string content, IFormFile? image = null)
+        public async Task<IActionResult> SubmitGroupPostFromView(int groupId, string content, IFormFile? image = null)
         {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                TempData["ErrorMessage"] = "Post content is required.";
+                return RedirectToAction("CreateGroupPostView", new { groupId });
+            }
+
             try
             {
                 var userId = _userManager.GetUserId(User);
@@ -287,10 +313,10 @@ namespace semproject.Controllers
 
                 if (!isMember)
                 {
-                    return Json(new { success = false, message = "You must be a member to post in this group." });
+                    TempData["ErrorMessage"] = "You must be a member to post in this group.";
+                    return RedirectToAction("Details", new { id = groupId });
                 }
 
-                // Create post
                 var post = new Post
                 {
                     Content = content,
@@ -298,7 +324,6 @@ namespace semproject.Controllers
                     CreatedAt = DateTime.UtcNow
                 };
 
-                // Handle image upload
                 if (image != null && image.Length > 0)
                 {
                     var fileName = Guid.NewGuid().ToString() + Path.GetExtension(image.FileName);
@@ -313,29 +338,26 @@ namespace semproject.Controllers
                     post.ImageUrl = $"/uploads/{fileName}";
                 }
 
-                    // Save post and get the created post with ID
-                var createdPost = await _postService.CreatePostAsync(post);
-                var createdPostId = createdPost.Id;
+                await _postService.CreatePostAsync(post, isGroupPost: true, groupId: groupId);
 
-                // Link post to group
-                var groupPost = await _groupsService.SharePostToGroupAsync(groupId, createdPostId, userId);
-
-                return Json(new
-                {
-                    success = true,
-                    message = "Post created and shared to group successfully!",
-                    postId = createdPostId,
-                    groupPostId = groupPost.Id
-                });
+                TempData["SuccessMessage"] = "Post created and shared to group successfully!";
+                return RedirectToAction("Details", new { id = groupId });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                return RedirectToAction("Details", new { id = groupId });
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                return RedirectToAction("Details", new { id = groupId });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating group post");
-                return Json(new
-                {
-                    success = false,
-                    message = "An error occurred while creating the post: " + ex.Message
-                });
+                _logger.LogError(ex, "Error creating group post from full-page form for GroupId {GroupId}", groupId);
+                TempData["ErrorMessage"] = "An error occurred while creating the post.";
+                return RedirectToAction("CreateGroupPostView", new { groupId });
             }
         }
     }

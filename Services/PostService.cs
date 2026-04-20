@@ -7,10 +7,12 @@ namespace semproject.Services
     public class PostService : IPostService
     {
         private readonly IPostRepository _postRepository;
+        private readonly IGroupRepository _groupRepository;
 
-        public PostService(IPostRepository postRepository)
+        public PostService(IPostRepository postRepository, IGroupRepository groupRepository)
         {
             _postRepository = postRepository;
+            _groupRepository = groupRepository;
         }
 
         public async Task<Dictionary<int, bool>> GetUserLikesStatusAsync(string userId, List<int> postIds)
@@ -43,9 +45,30 @@ namespace semproject.Services
             return await _postRepository.GetUserPostsAsync(userId, page, pageSize);
         }
 
-        public async Task<Post> CreatePostAsync(Post post)
+        public async Task<Post> CreatePostAsync(Post post, bool isGroupPost = false, int? groupId = null)
         {
-            return await _postRepository.AddAsync(post);
+            var createdPost = await _postRepository.AddAsync(post);
+
+            if (isGroupPost)
+            {
+                if (!groupId.HasValue)
+                {
+                    throw new ArgumentException("A groupId is required when isGroupPost is true.", nameof(groupId));
+                }
+
+                try
+                {
+                    await _groupRepository.SharePostToGroupAsync(groupId.Value, createdPost.Id, createdPost.UserId);
+                }
+                catch
+                {
+                    // Keep data consistent: if group sharing fails, remove the post that was just created.
+                    await _postRepository.DeleteAsync(createdPost.Id);
+                    throw;
+                }
+            }
+
+            return createdPost;
         }
 
         

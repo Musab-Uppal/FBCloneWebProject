@@ -24,6 +24,9 @@ namespace semproject.Models
 
         public string? CoverImageUrl { get; set; }
 
+        [NotMapped]
+        public int MemberCount { get; set; }
+
         
         public virtual IdentityUser CreatedBy { get; set; }
 

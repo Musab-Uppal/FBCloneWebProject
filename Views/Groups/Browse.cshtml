@@ -108,7 +108,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <div>
                                     <small class="text-muted">
-                                        <i class="bi bi-people"></i> @group.Members.Count members
+                                        <i class="bi bi-people"></i> @(group.MemberCount > 0 ? group.MemberCount : group.Members.Count) members
                                     </small>
                                     <span class="mx-2">•</span>
                                     <small class="text-muted">

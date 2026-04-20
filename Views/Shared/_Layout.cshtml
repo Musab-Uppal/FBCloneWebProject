@@ -20,7 +20,14 @@
 
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="app-shell">
+@{
+    var requestPath = Context.Request.Path.Value ?? string.Empty;
+    var isAuthPage = requestPath.IndexOf("/Identity/Account/Login", StringComparison.OrdinalIgnoreCase) >= 0
+                     || requestPath.IndexOf("/Account/Login", StringComparison.OrdinalIgnoreCase) >= 0
+                     || requestPath.IndexOf("/Identity/Account/Register", StringComparison.OrdinalIgnoreCase) >= 0
+                     || requestPath.IndexOf("/Account/Register", StringComparison.OrdinalIgnoreCase) >= 0;
+}
+<body class="app-shell @(isAuthPage ? "identity-auth-page" : "")">
     <div id="globalPageLoader" class="global-page-loader">
         <div class="loader-orbit" aria-hidden="true">
             <span class="loader-ring loader-ring-one"></span>
@@ -40,8 +47,7 @@
         @RenderBody()
     </main>
 
-    <!-- Include Footer -->
-    @await Html.PartialAsync("_Footer")
+    <!-- Footer removed per request -->
 
     <button type="button" id="backToTop" class="back-to-top" aria-label="Back to top">
         <i class="bi bi-arrow-up"></i>

@@ -32,7 +32,7 @@
   }
 
   const revealTargets = document.querySelectorAll(
-    ".card, .list-group-item, .quick-link, .notification-item, .alert, .table, .pagination, .modal-content",
+    ".card, .list-group-item, .quick-link, .notification-item, .alert, .table, .pagination",
   );
 
   revealTargets.forEach((el, index) => {
@@ -57,6 +57,15 @@
   } else {
     revealTargets.forEach((el) => el.classList.add("revealed"));
   }
+
+  // Never keep modal content in hidden reveal state; it can trap the page behind a backdrop.
+  document.addEventListener("shown.bs.modal", (event) => {
+    const modalContent = event.target.querySelector(".modal-content");
+    if (modalContent) {
+      modalContent.classList.add("revealed");
+      modalContent.classList.remove("reveal-in");
+    }
+  });
 
   document.addEventListener("click", (event) => {
     const anchor = event.target.closest("a[href]");

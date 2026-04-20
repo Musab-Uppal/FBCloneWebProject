@@ -13,6 +13,7 @@ namespace semproject.Controllers
         private readonly ILogger<HomeController> _logger;
         private readonly IPostService _postService;
         private readonly IFollowService _followService;
+        private readonly IGroupService _groupsService;
         private readonly UserManager<IdentityUser> _userManager;
         private readonly ISearchService _searchService;
         private readonly INotificationService _notificationService;
@@ -266,7 +267,8 @@ namespace semproject.Controllers
         public async Task<IActionResult> Feed(int page = 1)
         {
             var userId = _userManager.GetUserId(User);
-            var posts = await _postService.GetFollowedUsersPostsAsync(userId, page);
+            const int pageSize = 10;
+            var posts = await _postService.GetFollowedUsersPostsAsync(userId, page, pageSize);
 
             if (!posts.Any())
             {
@@ -280,19 +282,60 @@ namespace semproject.Controllers
             ViewBag.LikedPostIds = likedStatus.Where(kv => kv.Value).Select(kv => kv.Key).ToList();
             ViewBag.CurrentUserId = userId;
             ViewBag.CurrentPage = page;
+            // Show "Load more" when there are any posts on the page (keeps previous behavior)
             ViewBag.HasMorePosts = posts.Count > 0;
 
             return View(posts);
         }
 
         [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> LoadMorePosts(int page = 1)
+        {
+            var userId = _userManager.GetUserId(User);
+            const int pageSize = 10; // must match Feed pageSize
+            var posts = await _postService.GetFollowedUsersPostsAsync(userId, page, pageSize);
+
+            if (!posts.Any())
+            {
+                // return empty content so client knows there are no more posts
+                return Content(string.Empty);
+            }
+
+            var postIds = posts.Select(p => p.Id).ToList();
+            var likedStatus = await _postService.GetUserLikesStatusAsync(userId, postIds);
+            ViewBag.LikedPostIds = likedStatus.Where(kv => kv.Value).Select(kv => kv.Key).ToList();
+
+            var postLikes = new Dictionary<int, int>();
+            foreach (var postId in postIds)
+            {
+                var likeCount = await _postService.GetLikeCountAsync(postId);
+                postLikes[postId] = likeCount;
+            }
+
+            ViewBag.PostLikes = postLikes;
+            ViewBag.CurrentUserId = userId;
+
+            return PartialView("_PostList", posts);
+        }
+
+        [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreatePost(string content, IFormFile? image = null)
+        public async Task<IActionResult> CreatePost(string content, bool isGroupPost = false, int? groupId = null, IFormFile? image = null)
         {
+            if (isGroupPost)
+            {
+                Console.WriteLine($"Creating group post for GroupId: {groupId}");
+            }
             if (string.IsNullOrWhiteSpace(content))
             {
                 return Json(new { success = false, message = "Post content is required" });
+            }
+
+            if (isGroupPost && !groupId.HasValue)
+            {
+                return Json(new { success = false, message = "Group id is required for group posts." });
             }
 
             try
@@ -321,15 +364,59 @@ namespace semproject.Controllers
                     post.ImageUrl = $"/uploads/{fileName}";
                 }
 
-                var createdPost = await _postService.CreatePostAsync(post);
+                var createdPost = await _postService.CreatePostAsync(post, isGroupPost, groupId);
 
                 if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
                 {
-                    return Json(new { success = true, message = "Post created successfully!", postId = createdPost.Id });
+                    return Json(new
+                    {
+                        success = true,
+                        message = isGroupPost ? "Post created and shared to group successfully!" : "Post created successfully!",
+                        postId = createdPost.Id,
+                        groupId
+                    });
                 }
 
-                TempData["SuccessMessage"] = "Post created successfully!";
+                TempData["SuccessMessage"] = isGroupPost
+                    ? "Post created and shared to group successfully!"
+                    : "Post created successfully!";
+
+                if (isGroupPost && groupId.HasValue)
+                {
+                    return RedirectToAction("Details", "Groups", new { id = groupId.Value });
+                }
+
                 return RedirectToAction("Feed");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized group post attempt for GroupId {GroupId}", groupId);
+                var message = ex.Message;
+
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, message });
+                }
+
+                TempData["ErrorMessage"] = message;
+                return isGroupPost && groupId.HasValue
+                    ? RedirectToAction("Details", "Groups", new { id = groupId.Value })
+                    : RedirectToAction("Feed");
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Group post share validation failed for GroupId {GroupId}", groupId);
+                var message = ex.Message;
+
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, message });
+                }
+
+                TempData["ErrorMessage"] = message;
+                return isGroupPost && groupId.HasValue
+                    ? RedirectToAction("Details", "Groups", new { id = groupId.Value })
+                    : RedirectToAction("Feed");
             }
             catch (Exception ex)
             {
