@@ -7,6 +7,7 @@ namespace semproject.Services.Interfaces
         Task<Dictionary<int, bool>> GetUserLikesStatusAsync(string userId, List<int> postIds);
         Task<List<Post>> GetFollowedUsersPostsAsync(string currentUserId, int page = 1, int pageSize = 20);
         Task<List<Post>> GetRandomPostsAsync(int count = 10);
+        Task<List<Post>> GetRandomPostsPageAsync(int page = 1, int pageSize = 10, int seed = 0);
         Task<List<Post>> GetAllPostsAsync(int page = 1, int pageSize = 20);
         Task<Post> GetPostByIdAsync(int postId);
         Task<List<Post>> GetUserPostsAsync(string userId, int page = 1, int pageSize = 20);

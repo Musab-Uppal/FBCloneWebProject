@@ -268,13 +268,8 @@ namespace semproject.Controllers
         {
             var userId = _userManager.GetUserId(User);
             const int pageSize = 10;
-            var posts = await _postService.GetFollowedUsersPostsAsync(userId, page, pageSize);
-
-            if (!posts.Any())
-            {
-                var randomPosts = await _postService.GetRandomPostsAsync(10);
-                posts = randomPosts;
-            }
+            var seed = Random.Shared.Next(1, int.MaxValue);
+            var posts = await _postService.GetRandomPostsPageAsync(page, pageSize, seed);
 
             var postIds = posts.Select(p => p.Id).ToList();
             var likedStatus = await _postService.GetUserLikesStatusAsync(userId, postIds);
@@ -282,19 +277,20 @@ namespace semproject.Controllers
             ViewBag.LikedPostIds = likedStatus.Where(kv => kv.Value).Select(kv => kv.Key).ToList();
             ViewBag.CurrentUserId = userId;
             ViewBag.CurrentPage = page;
-            // Show "Load more" when there are any posts on the page (keeps previous behavior)
-            ViewBag.HasMorePosts = posts.Count > 0;
+            ViewBag.RandomSeed = seed;
+            ViewBag.HasMorePosts = posts.Count == pageSize;
 
             return View(posts);
         }
 
         [Authorize]
         [HttpGet]
-        public async Task<IActionResult> LoadMorePosts(int page = 1)
+        public async Task<IActionResult> LoadMorePosts(int page = 1, int seed = 0)
         {
             var userId = _userManager.GetUserId(User);
             const int pageSize = 10; // must match Feed pageSize
-            var posts = await _postService.GetFollowedUsersPostsAsync(userId, page, pageSize);
+            var effectiveSeed = seed == 0 ? Random.Shared.Next(1, int.MaxValue) : seed;
+            var posts = await _postService.GetRandomPostsPageAsync(page, pageSize, effectiveSeed);
 
             if (!posts.Any())
             {

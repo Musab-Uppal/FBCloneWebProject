@@ -224,6 +224,73 @@ namespace semproject.Repositories.Implementations
             )).Distinct().ToList();
         }
 
+        public async Task<List<Post>> GetRandomPostsPageAsync(int page = 1, int pageSize = 10, int seed = 0)
+        {
+            var offset = (page - 1) * pageSize;
+
+            var query = @"
+                SELECT p.*, u.*,
+                       (SELECT COUNT(*) FROM Likes WHERE PostId = p.Id) as LikeCount,
+                       (SELECT COUNT(*) FROM Comments WHERE PostId = p.Id) as CommentCount
+                FROM Posts p
+                LEFT JOIN AspNetUsers u ON p.UserId = u.Id
+                ORDER BY ABS(CHECKSUM(CONCAT(@Seed, ':', p.Id))), p.Id
+                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+
+            var postDictionary = new Dictionary<int, Post>();
+            var posts = (await _db.QueryAsync<Post, IdentityUser, Post>(
+                query,
+                (post, user) =>
+                {
+                    if (!postDictionary.TryGetValue(post.Id, out var existingPost))
+                    {
+                        existingPost = post;
+                        existingPost.User = user;
+                        postDictionary.Add(existingPost.Id, existingPost);
+                    }
+                    return existingPost;
+                },
+                new { Seed = seed, PageSize = pageSize, Offset = offset },
+                splitOn: "Id"
+            )).Distinct().ToList();
+
+            if (posts.Any())
+            {
+                var postIds = posts.Select(p => p.Id).ToList();
+                var commentsQuery = @"
+                    SELECT c.*, u.*
+                    FROM Comments c
+                    LEFT JOIN AspNetUsers u ON c.UserId = u.Id
+                    WHERE c.PostId IN @PostIds
+                    ORDER BY c.CreatedAt";
+
+                var comments = (await _db.QueryAsync<Comment, IdentityUser, Comment>(
+                    commentsQuery,
+                    (comment, user) =>
+                    {
+                        comment.User = user;
+                        return comment;
+                    },
+                    new { PostIds = postIds },
+                    splitOn: "Id"
+                )).ToList();
+
+                var commentsByPost = comments
+                    .GroupBy(c => c.PostId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                foreach (var post in posts)
+                {
+                    if (commentsByPost.TryGetValue(post.Id, out var postComments))
+                    {
+                        post.Comments = postComments;
+                    }
+                }
+            }
+
+            return posts;
+        }
+
         public async Task<List<Post>> GetAllPostsAsync(int page = 1, int pageSize = 20)
         {
             var offset = (page - 1) * pageSize;

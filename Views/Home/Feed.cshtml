@@ -134,7 +134,7 @@
             @if (ViewBag.HasMorePosts)
             {
                 <div class="text-center mt-4">
-                    <button id="loadMoreBtn" class="btn btn-outline-primary" data-page="2">
+                    <button id="loadMoreBtn" class="btn btn-outline-primary" data-page="2" data-seed="@ViewBag.RandomSeed">
                         <i class="bi bi-arrow-down"></i> Load More Posts
                     </button>
                 </div>
@@ -375,6 +375,7 @@
             $('#loadMoreBtn').click(function() {
                 const button = $(this);
                 const page = button.data('page');
+                const seed = button.data('seed');
 
                 // Show loading state
                 button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Loading...');
@@ -382,7 +383,7 @@
                 $.ajax({
                     url: '@Url.Action("LoadMorePosts", "Home")',
                     type: 'GET',
-                    data: { page: page },
+                    data: { page: page, seed: seed },
                     success: function(html) {
                         if (html.trim()) {
                             // Append new posts before the load more button

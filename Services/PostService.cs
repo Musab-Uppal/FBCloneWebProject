@@ -30,6 +30,11 @@ namespace semproject.Services
             return await _postRepository.GetRandomPostsAsync(count);
         }
 
+        public async Task<List<Post>> GetRandomPostsPageAsync(int page = 1, int pageSize = 10, int seed = 0)
+        {
+            return await _postRepository.GetRandomPostsPageAsync(page, pageSize, seed);
+        }
+
         public async Task<List<Post>> GetAllPostsAsync(int page = 1, int pageSize = 20)
         {
             return await _postRepository.GetAllPostsAsync(page, pageSize);
